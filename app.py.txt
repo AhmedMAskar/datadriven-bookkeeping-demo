@@ -1,0 +1,210 @@
+import streamlit as st
+import pandas as pd
+from pathlib import Path
+import plotly.express as px
+
+# ----- BASIC CONFIG -----
+st.set_page_config(
+    page_title="DataDriven Bookkeeping – Multi-Industry Demo",
+    layout="wide"
+)
+
+DATA_DIR = Path("data")
+
+# Map industries to CSV files
+INDUSTRY_FILES = {
+    "Construction Company": "pl_construction.csv",
+    "Dental Practice": "pl_dentist.csv",
+    "Medical Office / Clinic": "pl_medical_office.csv",
+    "Lawn Care & Landscaping": "pl_lawn_care.csv",
+    "Kitchen / Home Contractor": "pl_kitchen_contractor.csv",
+}
+
+@st.cache_data
+def load_pl_data(filename: str) -> pd.DataFrame:
+    df = pd.read_csv(DATA_DIR / filename)
+    for col in ["Current Period", "Prior Period", "Change"]:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    return df
+
+def split_sections(df: pd.DataFrame):
+    revenues = df[df["Section"] == "REVENUES"].copy()
+    cogs = df[df["Section"] == "COST OF GOODS SOLD"].copy()
+    opex = df[df["Section"] == "OPERATING EXPENSES"].copy()
+    summary = df[df["Section"] == "SUMMARY"].set_index("Line Item")
+    return revenues, cogs, opex, summary
+
+def get_summary_value(summary: pd.DataFrame, name: str) -> float:
+    if name in summary.index:
+        return float(summary.loc[name, "Current Period"])
+    return 0.0
+
+# ----- SIDEBAR -----
+st.sidebar.title("DataDriven Bookkeeping Demo")
+
+industry = st.sidebar.selectbox(
+    "Sample client type",
+    list(INDUSTRY_FILES.keys())
+)
+
+page = st.sidebar.radio(
+    "View",
+    ["Profit & Loss", "Insights"]
+)
+
+filename = INDUSTRY_FILES[industry]
+df = load_pl_data(filename)
+
+# ----- PROFIT & LOSS PAGE -----
+if page == "Profit & Loss":
+    st.title(f"Profit & Loss – {industry}")
+    st.caption("Demo only – sample numbers to show how DataDriven Bookkeeping can present your financials.")
+
+    revenues, cogs, opex, summary = split_sections(df)
+
+    total_rev_cur = revenues.loc[
+        revenues["Line Item"].str.contains("TOTAL", case=False), "Current Period"
+    ].sum()
+    total_rev_prev = revenues.loc[
+        revenues["Line Item"].str.contains("TOTAL", case=False), "Prior Period"
+    ].sum()
+
+    gross_profit = get_summary_value(summary, "GROSS PROFIT (LOSS)")
+    operating_profit = get_summary_value(summary, "OPERATING PROFIT (LOSS)")
+    net_income = get_summary_value(summary, "NET INCOME (LOSS)")
+
+    gross_margin = gross_profit / total_rev_cur if total_rev_cur else 0
+    oper_margin = operating_profit / total_rev_cur if total_rev_cur else 0
+    net_margin = net_income / total_rev_cur if total_rev_cur else 0
+
+    # KPI row
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric(
+        "Total Revenue (Current)",
+        f"${total_rev_cur:,.0f}",
+        f"${total_rev_cur - total_rev_prev:,.0f}"
+    )
+    k2.metric(
+        "Gross Profit",
+        f"${gross_profit:,.0f}",
+        f"{gross_margin*100:,.1f}% margin"
+    )
+    k3.metric(
+        "Operating Profit",
+        f"${operating_profit:,.0f}",
+        f"{oper_margin*100:,.1f}% margin"
+    )
+    k4.metric(
+        "Net Income",
+        f"${net_income:,.0f}",
+        f"{net_margin*100:,.1f}% margin"
+    )
+
+    st.markdown("---")
+
+    # Revenue vs COGS
+    st.subheader("Revenue vs Cost of Goods Sold")
+    cogs_total_cur = cogs["Current Period"].sum()
+    cogs_total_prev = cogs["Prior Period"].sum()
+
+    rev_cogs_df = pd.DataFrame({
+        "Category": ["Revenue", "Cost of Goods Sold"],
+        "Current Period": [total_rev_cur, cogs_total_cur],
+        "Prior Period": [total_rev_prev, cogs_total_prev],
+    })
+
+    rev_cogs_long = rev_cogs_df.melt(
+        id_vars="Category",
+        var_name="Period",
+        value_name="Amount"
+    )
+
+    fig_rev_cogs = px.bar(
+        rev_cogs_long,
+        x="Category",
+        y="Amount",
+        color="Period",
+        barmode="group",
+        title="Current vs Prior Period – Revenue & COGS"
+    )
+    fig_rev_cogs.update_layout(yaxis_title="Amount ($)", xaxis_title="")
+    st.plotly_chart(fig_rev_cogs, use_container_width=True)
+
+    # Revenue breakdown
+    st.subheader("Revenue Breakdown")
+    rev_detail = revenues[~revenues["Line Item"].str.contains("TOTAL", case=False)]
+    rev_detail_long = rev_detail.melt(
+        id_vars=["Line Item"],
+        value_vars=["Current Period", "Prior Period"],
+        var_name="Period",
+        value_name="Amount"
+    )
+    fig_rev_detail = px.bar(
+        rev_detail_long,
+        x="Line Item",
+        y="Amount",
+        color="Period",
+        barmode="group",
+        title="Revenue by Line Item"
+    )
+    fig_rev_detail.update_layout(yaxis_title="Amount ($)", xaxis_title="")
+    st.plotly_chart(fig_rev_detail, use_container_width=True)
+
+    # Top Opex
+    st.subheader("Top Operating Expenses")
+    opex_sorted = opex.sort_values("Current Period", ascending=False)
+    fig_opex = px.bar(
+        opex_sorted.head(10),
+        x="Line Item",
+        y="Current Period",
+        title="Top 10 Operating Expense Categories"
+    )
+    fig_opex.update_layout(yaxis_title="Amount ($)", xaxis_title="")
+    st.plotly_chart(fig_opex, use_container_width=True)
+
+    with st.expander("Full P&L Detail"):
+        st.dataframe(df)
+
+# ----- INSIGHTS PAGE -----
+elif page == "Insights":
+    st.title(f"Commentary & Insights – {industry}")
+
+    revenues, cogs, opex, summary = split_sections(df)
+
+    total_rev_cur = revenues.loc[
+        revenues["Line Item"].str.contains("TOTAL", case=False), "Current Period"
+    ].sum()
+    total_rev_prev = revenues.loc[
+        revenues["Line Item"].str.contains("TOTAL", case=False), "Prior Period"
+    ].sum()
+
+    net_income_cur = get_summary_value(summary, "NET INCOME (LOSS)")
+    net_income_prev = summary.loc["NET INCOME (LOSS)", "Prior Period"] if "NET INCOME (LOSS)" in summary.index else 0
+    delta = net_income_cur - net_income_prev
+    pct = (delta / net_income_prev * 100) if net_income_prev else None
+
+    st.subheader("High-level trend")
+    st.write(f"- Revenue: **${total_rev_cur:,.0f}** (prior: ${total_rev_prev:,.0f})")
+    st.write(f"- Net income: **${net_income_cur:,.0f}** (prior: ${net_income_prev:,.0f})")
+
+    if pct is not None:
+        st.write(f"- Net income change: **${delta:,.0f} ({pct:,.1f}%)**")
+
+    if pct is not None and pct > 0:
+        st.success("Profitability improved vs prior period.")
+    elif pct is not None and pct < 0:
+        st.warning("Profitability declined vs prior period.")
+    else:
+        st.info("Profitability is roughly flat vs prior period.")
+
+    st.markdown(
+        """
+        This is where you can add **plain-English commentary** tailored to each niche:
+
+        - Dentists/medical: hygiene visits, lab fees, staff costs, marketing ROI  
+        - Lawn care: crew efficiency, fuel, seasonal revenue, route density  
+        - Contractors: job profitability, materials, subcontractors, overhead
+
+        In a real client app, you'd write this like a short monthly summary for the owner.
+        """
+    )
