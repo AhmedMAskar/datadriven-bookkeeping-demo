@@ -6,8 +6,7 @@ import plotly.express as px
 # ----- BASIC CONFIG -----
 st.set_page_config(
     page_title="DataDriven Bookkeeping – Multi-Industry Financial Demo",
-    layout="centered",  # better on mobile than "wide"
-    initial_sidebar_state="collapsed"  # start with sidebar hidden on phones
+    layout="centered",
 )
 
 DATA_DIR = Path("data")
@@ -67,13 +66,14 @@ INDUSTRY_SPATIAL_FILES = {
     "Long-Haul Trucking": "spatial_trucking_longhaul.csv",
 }
 
+
 # ---------- HELPERS FOR MOBILE LAYOUT ----------
 
 def render_kpis(kpis, cols_per_row: int = 2):
     """
     Render a list of KPI tuples (label, value, delta) in rows
-    with a fixed number of columns per row. This keeps things
-    readable on mobile (e.g., 2 per row instead of 4 tiny metrics).
+    with a fixed number of columns per row.
+    Example kpis: [("Label", "Value", "Delta or None"), ...]
     """
     for i in range(0, len(kpis), cols_per_row):
         row = kpis[i:i + cols_per_row]
@@ -169,25 +169,36 @@ def generate_spatial_commentary(industry: str, sdf: pd.DataFrame) -> str:
     return "\n".join(pieces)
 
 
-# ---------- SIDEBAR ----------
+# ---------- TOP CONTROLS (ALWAYS VISIBLE) ----------
 
-st.sidebar.title("DataDriven Bookkeeping Demo")
+st.title("DataDriven Bookkeeping – Multi-Industry Financial Demo")
 
-industry = st.sidebar.selectbox(
-    "Sample client type",
-    list(INDUSTRY_FILES.keys())
-)
+with st.container():
+    col1, col2 = st.columns([1, 1])
 
-page = st.sidebar.radio(
-    "View",
-    ["Profit & Loss", "Insights", "Spatial", "Trends", "Balance Sheet", "Cash Flow"]
-)
+    with col1:
+        industry = st.selectbox(
+            "Sample client type",
+            list(INDUSTRY_FILES.keys()),
+            key="industry_select",
+        )
+
+    with col2:
+        page = st.radio(
+            "View",
+            ["Profit & Loss", "Insights", "Spatial", "Trends", "Balance Sheet", "Cash Flow"],
+            horizontal=True,
+            key="view_radio",
+        )
+
+st.markdown("---")
+
+# ---------- SHARED PRE-CALCS ----------
 
 filename = INDUSTRY_FILES[industry]
 df = load_pl_data(filename)
 revenues, cogs, opex, summary = split_sections(df)
 
-# Pre-calc for several views
 total_rev_cur = revenues.loc[
     revenues["Line Item"].str.contains("TOTAL", case=False), "Current Period"
 ].sum()
@@ -206,12 +217,12 @@ net_margin = net_income / total_rev_cur if total_rev_cur else 0
 # ---------- P&L PAGE ----------
 
 if page == "Profit & Loss":
-    st.title(f"Profit & Loss – {industry}")
+    st.subheader(f"Profit & Loss – {industry}")
     st.caption(
         "Demo only – sample numbers to show how DataDriven Bookkeeping can present your financials."
     )
 
-    # KPI row (mobile-friendlier: 2 metrics per row)
+    # KPIs (2 per row for mobile)
     kpis_pl = [
         (
             "Total Revenue (Current)",
@@ -304,14 +315,14 @@ if page == "Profit & Loss":
 # ---------- INSIGHTS PAGE ----------
 
 elif page == "Insights":
-    st.title(f"Commentary & Insights – {industry}")
+    st.subheader(f"Commentary & Insights – {industry}")
 
     net_income_cur = get_summary_value(summary, "NET INCOME (LOSS)")
     net_income_prev = summary.loc["NET INCOME (LOSS)", "Prior Period"] if "NET INCOME (LOSS)" in summary.index else 0
     delta = net_income_cur - net_income_prev
     pct = (delta / net_income_prev * 100) if net_income_prev else None
 
-    st.subheader("High-level trend")
+    st.markdown("#### High-level trend")
     st.write(f"- Revenue: **${total_rev_cur:,.0f}** (prior: ${total_rev_prev:,.0f})")
     st.write(f"- Net income: **${net_income_cur:,.0f}** (prior: ${net_income_prev:,.0f})")
 
@@ -335,7 +346,7 @@ elif page == "Insights":
 # ---------- SPATIAL PAGE (OpenStreetMap + blue→red scale) ----------
 
 elif page == "Spatial":
-    st.title(f"Where Your Clients Are – {industry}")
+    st.subheader(f"Where Your Clients Are – {industry}")
     spatial_file = INDUSTRY_SPATIAL_FILES[industry]
     sdf = load_csv(spatial_file)
 
@@ -424,7 +435,7 @@ elif page == "Spatial":
 # ---------- TRENDS PAGE ----------
 
 elif page == "Trends":
-    st.title(f"Monthly Trends – {industry}")
+    st.subheader(f"Monthly Trends – {industry}")
     trend_file = INDUSTRY_TREND_FILES[industry]
     tdf = load_csv(trend_file)
 
@@ -433,7 +444,7 @@ elif page == "Trends":
         tdf["Month"] = pd.Categorical(tdf["Month"], categories=month_order, ordered=True)
         tdf = tdf.sort_values("Month")
 
-    st.subheader("Revenue & Net Income Over Time")
+    st.markdown("#### Revenue & Net Income Over Time")
     fig_trend = px.line(
         tdf,
         x="Month",
@@ -444,7 +455,7 @@ elif page == "Trends":
     fig_trend.update_layout(yaxis_title="Amount ($)", legend_title="")
     st.plotly_chart(fig_trend, use_container_width=True)
 
-    st.subheader("Gross Profit vs Operating Expenses")
+    st.markdown("#### Gross Profit vs Operating Expenses")
     fig_gp = px.line(
         tdf,
         x="Month",
@@ -461,7 +472,7 @@ elif page == "Trends":
 # ---------- BALANCE SHEET PAGE ----------
 
 elif page == "Balance Sheet":
-    st.title(f"Balance Sheet – {industry}")
+    st.subheader(f"Balance Sheet – {industry}")
     bs_file = INDUSTRY_BS_FILES[industry]
     bs = load_csv(bs_file)
 
@@ -483,7 +494,7 @@ elif page == "Balance Sheet":
 # ---------- CASH FLOW PAGE ----------
 
 elif page == "Cash Flow":
-    st.title(f"Cash Flow – {industry}")
+    st.subheader(f"Cash Flow – {industry}")
     cf_file = INDUSTRY_CF_FILES[industry]
     cf = load_csv(cf_file)
 
