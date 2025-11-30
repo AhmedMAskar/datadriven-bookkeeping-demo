@@ -1,0 +1,13 @@
+Section,Line Item,Current Period,Prior Period,Change
+OPERATING ACTIVITIES,Net Income,21679,20811,868
+OPERATING ACTIVITIES,Depreciation & Amortization,2601,2470,131
+OPERATING ACTIVITIES,Change in Working Capital,-650,-585,-65
+OPERATING ACTIVITIES,Net Cash from Operating Activities,23630,22696,934
+INVESTING ACTIVITIES,Purchase of Property & Equipment,-4335,-4768,433
+INVESTING ACTIVITIES,Net Cash from Investing Activities,-4335,-4768,433
+FINANCING ACTIVITIES,Debt Principal Payments,-1734,-1820,86
+FINANCING ACTIVITIES,Owner Distributions,-1300,-1235,-65
+FINANCING ACTIVITIES,Net Cash from Financing Activities,-3034,-3055,21
+SUMMARY,Net Increase (Decrease) in Cash,16261,14873,1388
+SUMMARY,Beginning Cash,10839,9755,1084
+SUMMARY,Ending Cash,27100,24628,2472
