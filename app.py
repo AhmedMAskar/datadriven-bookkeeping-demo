@@ -311,7 +311,7 @@ elif page == "Insights":
         """
     )
 
-# ---------- SPATIAL PAGE ----------
+# ---------- SPATIAL PAGE (OpenStreetMap + blue→red scale) ----------
 
 elif page == "Spatial":
     st.title(f"Where Your Clients Are – {industry}")
@@ -326,7 +326,12 @@ elif page == "Spatial":
         st.stop()
 
     # Coerce numeric columns
-    for col in ["New_Customers", "Visits", "Revenue_Current", "Revenue_Prior", "Profit_Current", "Profit_Prior", "Latitude", "Longitude"]:
+    for col in [
+        "New_Customers", "Visits",
+        "Revenue_Current", "Revenue_Prior",
+        "Profit_Current", "Profit_Prior",
+        "Latitude", "Longitude"
+    ]:
         if col in sdf.columns:
             sdf[col] = pd.to_numeric(sdf[col], errors="coerce")
 
@@ -346,6 +351,7 @@ elif page == "Spatial":
 
     st.subheader("ZIP-Level Performance Map")
 
+    # Choose metric for color/size
     value_col = "Profit_Current" if "Profit_Current" in sdf.columns else "Revenue_Current"
     size_col = "Revenue_Current" if "Revenue_Current" in sdf.columns else value_col
 
@@ -355,24 +361,35 @@ elif page == "Spatial":
         # Drop rows with missing coords or metric
         sdf_map = sdf.dropna(subset=["Latitude", "Longitude", value_col]).copy()
 
-        fig_map = px.scatter_geo(
+        # Center & zoom for nicer OSM view
+        center_lat = sdf_map["Latitude"].mean()
+        center_lon = sdf_map["Longitude"].mean()
+
+        fig_map = px.scatter_mapbox(
             sdf_map,
             lat="Latitude",
             lon="Longitude",
             color=value_col,
             size=size_col,
             hover_name="Zip",
-            hover_data=[c for c in ["City", "New_Customers", "Visits", "Revenue_Current", "Profit_Current"] if c in sdf.columns],
-            title="Hot & Cold ZIP Codes (size = revenue, color = profit)"
+            hover_data=[
+                c for c in [
+                    "City", "New_Customers", "Visits",
+                    "Revenue_Current", "Profit_Current"
+                ] if c in sdf.columns
+            ],
+            color_continuous_scale=["blue", "lightgray", "red"],  # blue=cold, red=hot
+            zoom=9,
+            center={"lat": center_lat, "lon": center_lon},
+            title="Hot & Cold ZIP Codes (OpenStreetMap background)"
         )
-        fig_map.update_geos(
-            fitbounds="locations",
-            showcountries=False,
-            showland=True,
-            lataxis_showgrid=True,
-            lonaxis_showgrid=True
+
+        fig_map.update_layout(
+            mapbox_style="open-street-map",
+            margin=dict(l=0, r=0, t=40, b=0),
+            coloraxis_colorbar_title="Performance"
         )
-        fig_map.update_layout(margin=dict(l=0, r=0, t=40, b=0))
+
         st.plotly_chart(fig_map, use_container_width=True)
 
     st.subheader("Narrative Summary")
