@@ -102,28 +102,44 @@ def generate_spatial_commentary(industry: str, sdf: pd.DataFrame) -> str:
     if sdf.empty:
         return "No spatial data available for this sample."
 
-    # Use Profit_Current if available, else Revenue_Current
+    # Prefer Profit_Current if present, else fall back to Revenue_Current
     value_col = "Profit_Current" if "Profit_Current" in sdf.columns else "Revenue_Current"
+    if value_col not in sdf.columns:
+        return "Spatial data is available, but key value columns are missing for this sample."
 
-    q20 = sdf[value_col].quantile(0.2)
-    q80 = sdf[value_col].quantile(0.8)
+    metric_series = pd.to_numeric(sdf[value_col], errors="coerce")
 
-    hot = sdf[sdf[value_col] >= q80]
-    cold = sdf[sdf[value_col] <= q20]
+    # Drop NaNs
+    valid = ~metric_series.isna()
+    if not valid.any():
+        return "Spatial data is loaded, but there are no valid numeric values to analyze."
+
+    metric_series = metric_series[valid]
+    sdf_valid = sdf.loc[valid].copy()
+
+    q20 = metric_series.quantile(0.2)
+    q80 = metric_series.quantile(0.8)
+
+    hot = sdf_valid[metric_series >= q80]
+    cold = sdf_valid[metric_series <= q20]
 
     def fmt_zip_block(df_slice: pd.DataFrame) -> str:
         rows = []
         for _, row in df_slice.head(4).iterrows():
-            rows.append(f"{int(row['Zip'])} ({row['City']})")
+            try:
+                z = int(row["Zip"])
+            except Exception:
+                z = row["Zip"]
+            rows.append(f"{z} ({row['City']})")
         return ", ".join(rows)
 
-    hot_txt = fmt_zip_block(hot)
-    cold_txt = fmt_zip_block(cold)
+    hot_txt = fmt_zip_block(hot) if not hot.empty else ""
+    cold_txt = fmt_zip_block(cold) if not cold.empty else ""
 
     pieces = []
     if hot_txt:
         pieces.append(
-            f"- **Hot spots** for {industry.lower()} revenue/profit are clustering around **{hot_txt}**."
+            f"- **Hot spots** for {industry.lower()} performance are clustering around **{hot_txt}**."
         )
     if cold_txt:
         pieces.append(
@@ -302,11 +318,23 @@ elif page == "Spatial":
     spatial_file = INDUSTRY_SPATIAL_FILES[industry]
     sdf = load_csv(spatial_file)
 
-    # Basic metrics
-    total_new = sdf["New_Customers"].sum()
-    total_visits = sdf["Visits"].sum()
-    total_rev = sdf["Revenue_Current"].sum()
-    total_profit = sdf["Profit_Current"].sum()
+    # Required base columns
+    required_cols = ["Zip", "City", "State", "Latitude", "Longitude"]
+    missing = [c for c in required_cols if c not in sdf.columns]
+    if missing:
+        st.error(f"The spatial file for this industry is missing required columns: {', '.join(missing)}")
+        st.stop()
+
+    # Coerce numeric columns
+    for col in ["New_Customers", "Visits", "Revenue_Current", "Revenue_Prior", "Profit_Current", "Profit_Prior", "Latitude", "Longitude"]:
+        if col in sdf.columns:
+            sdf[col] = pd.to_numeric(sdf[col], errors="coerce")
+
+    # Summary metrics (with safe fallbacks)
+    total_new = int(sdf["New_Customers"].sum()) if "New_Customers" in sdf.columns else 0
+    total_visits = int(sdf["Visits"].sum()) if "Visits" in sdf.columns else 0
+    total_rev = float(sdf["Revenue_Current"].sum()) if "Revenue_Current" in sdf.columns else 0.0
+    total_profit = float(sdf["Profit_Current"].sum()) if "Profit_Current" in sdf.columns else 0.0
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("New Customers (Period)", f"{total_new:,}")
@@ -316,21 +344,36 @@ elif page == "Spatial":
 
     st.markdown("---")
 
-    # Map
     st.subheader("ZIP-Level Performance Map")
-    fig_map = px.scatter_geo(
-        sdf,
-        lat="Latitude",
-        lon="Longitude",
-        color="Profit_Current",
-        size="Revenue_Current",
-        hover_name="Zip",
-        hover_data=["City", "New_Customers", "Visits", "Revenue_Current", "Profit_Current"],
-        title="Hot & Cold ZIP Codes (size = revenue, color = profit)"
-    )
-    fig_map.update_geos(fitbounds="locations", showcountries=False, showland=True, lataxis_showgrid=True, lonaxis_showgrid=True)
-    fig_map.update_layout(margin=dict(l=0, r=0, t=40, b=0))
-    st.plotly_chart(fig_map, use_container_width=True)
+
+    value_col = "Profit_Current" if "Profit_Current" in sdf.columns else "Revenue_Current"
+    size_col = "Revenue_Current" if "Revenue_Current" in sdf.columns else value_col
+
+    if value_col not in sdf.columns:
+        st.warning("Spatial data is present, but no Profit_Current or Revenue_Current field is available to map.")
+    else:
+        # Drop rows with missing coords or metric
+        sdf_map = sdf.dropna(subset=["Latitude", "Longitude", value_col]).copy()
+
+        fig_map = px.scatter_geo(
+            sdf_map,
+            lat="Latitude",
+            lon="Longitude",
+            color=value_col,
+            size=size_col,
+            hover_name="Zip",
+            hover_data=[c for c in ["City", "New_Customers", "Visits", "Revenue_Current", "Profit_Current"] if c in sdf.columns],
+            title="Hot & Cold ZIP Codes (size = revenue, color = profit)"
+        )
+        fig_map.update_geos(
+            fitbounds="locations",
+            showcountries=False,
+            showland=True,
+            lataxis_showgrid=True,
+            lonaxis_showgrid=True
+        )
+        fig_map.update_layout(margin=dict(l=0, r=0, t=40, b=0))
+        st.plotly_chart(fig_map, use_container_width=True)
 
     st.subheader("Narrative Summary")
     st.markdown(generate_spatial_commentary(industry, sdf))
