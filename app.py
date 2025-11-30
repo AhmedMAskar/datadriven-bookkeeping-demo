@@ -6,7 +6,8 @@ import plotly.express as px
 # ----- BASIC CONFIG -----
 st.set_page_config(
     page_title="DataDriven Bookkeeping – Multi-Industry Financial Demo",
-    layout="wide"
+    layout="centered",  # better on mobile than "wide"
+    initial_sidebar_state="collapsed"  # start with sidebar hidden on phones
 )
 
 DATA_DIR = Path("data")
@@ -65,6 +66,22 @@ INDUSTRY_SPATIAL_FILES = {
     "Restaurant": "spatial_restaurant.csv",
     "Long-Haul Trucking": "spatial_trucking_longhaul.csv",
 }
+
+# ---------- HELPERS FOR MOBILE LAYOUT ----------
+
+def render_kpis(kpis, cols_per_row: int = 2):
+    """
+    Render a list of KPI tuples (label, value, delta) in rows
+    with a fixed number of columns per row. This keeps things
+    readable on mobile (e.g., 2 per row instead of 4 tiny metrics).
+    """
+    for i in range(0, len(kpis), cols_per_row):
+        row = kpis[i:i + cols_per_row]
+        cols = st.columns(len(row))
+        for col, (label, value, delta) in zip(cols, row):
+            with col:
+                st.metric(label, value, delta)
+
 
 # ---------- LOADERS ----------
 
@@ -190,30 +207,34 @@ net_margin = net_income / total_rev_cur if total_rev_cur else 0
 
 if page == "Profit & Loss":
     st.title(f"Profit & Loss – {industry}")
-    st.caption("Demo only – sample numbers to show how DataDriven Bookkeeping can present your financials.")
+    st.caption(
+        "Demo only – sample numbers to show how DataDriven Bookkeeping can present your financials."
+    )
 
-    # KPI row
-    k1, k2, k3, k4 = st.columns(4)
-    k1.metric(
-        "Total Revenue (Current)",
-        f"${total_rev_cur:,.0f}",
-        f"${total_rev_cur - total_rev_prev:,.0f}"
-    )
-    k2.metric(
-        "Gross Profit",
-        f"${gross_profit:,.0f}",
-        f"{gross_margin*100:,.1f}% margin"
-    )
-    k3.metric(
-        "Operating Profit",
-        f"${operating_profit:,.0f}",
-        f"{oper_margin*100:,.1f}% margin"
-    )
-    k4.metric(
-        "Net Income",
-        f"${net_income:,.0f}",
-        f"{net_margin*100:,.1f}% margin"
-    )
+    # KPI row (mobile-friendlier: 2 metrics per row)
+    kpis_pl = [
+        (
+            "Total Revenue (Current)",
+            f"${total_rev_cur:,.0f}",
+            f"${total_rev_cur - total_rev_prev:,.0f}",
+        ),
+        (
+            "Gross Profit",
+            f"${gross_profit:,.0f}",
+            f"{gross_margin*100:,.1f}% margin",
+        ),
+        (
+            "Operating Profit",
+            f"${operating_profit:,.0f}",
+            f"{oper_margin*100:,.1f}% margin",
+        ),
+        (
+            "Net Income",
+            f"${net_income:,.0f}",
+            f"{net_margin*100:,.1f}% margin",
+        ),
+    ]
+    render_kpis(kpis_pl, cols_per_row=2)
 
     st.markdown("---")
 
@@ -278,7 +299,7 @@ if page == "Profit & Loss":
     st.plotly_chart(fig_opex, use_container_width=True)
 
     with st.expander("Full P&L Detail"):
-        st.dataframe(df)
+        st.dataframe(df, use_container_width=True, height=400)
 
 # ---------- INSIGHTS PAGE ----------
 
@@ -341,11 +362,13 @@ elif page == "Spatial":
     total_rev = float(sdf["Revenue_Current"].sum()) if "Revenue_Current" in sdf.columns else 0.0
     total_profit = float(sdf["Profit_Current"].sum()) if "Profit_Current" in sdf.columns else 0.0
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("New Customers (Period)", f"{total_new:,}")
-    c2.metric("Total Visits / Jobs", f"{total_visits:,}")
-    c3.metric("Revenue (Current Period)", f"${total_rev:,.0f}")
-    c4.metric("Estimated Profit (Current)", f"${total_profit:,.0f}")
+    kpis_spatial = [
+        ("New Customers (Period)", f"{total_new:,}", None),
+        ("Total Visits / Jobs", f"{total_visits:,}", None),
+        ("Revenue (Current Period)", f"${total_rev:,.0f}", None),
+        ("Estimated Profit (Current)", f"${total_profit:,.0f}", None),
+    ]
+    render_kpis(kpis_spatial, cols_per_row=2)
 
     st.markdown("---")
 
@@ -396,7 +419,7 @@ elif page == "Spatial":
     st.markdown(generate_spatial_commentary(industry, sdf))
 
     with st.expander("Underlying ZIP Table"):
-        st.dataframe(sdf)
+        st.dataframe(sdf, use_container_width=True, height=400)
 
 # ---------- TRENDS PAGE ----------
 
@@ -433,7 +456,7 @@ elif page == "Trends":
     st.plotly_chart(fig_gp, use_container_width=True)
 
     with st.expander("Raw Trend Data"):
-        st.dataframe(tdf)
+        st.dataframe(tdf, use_container_width=True, height=400)
 
 # ---------- BALANCE SHEET PAGE ----------
 
@@ -446,14 +469,16 @@ elif page == "Balance Sheet":
     total_liab = bs.loc[bs["Line Item"] == "TOTAL LIABILITIES", "Current Period"].iloc[0]
     total_equity = bs.loc[bs["Line Item"] == "TOTAL EQUITY", "Current Period"].iloc[0]
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Total Assets", f"${total_assets:,.0f}")
-    c2.metric("Total Liabilities", f"${total_liab:,.0f}")
-    c3.metric("Total Equity", f"${total_equity:,.0f}")
+    kpis_bs = [
+        ("Total Assets", f"${total_assets:,.0f}", None),
+        ("Total Liabilities", f"${total_liab:,.0f}", None),
+        ("Total Equity", f"${total_equity:,.0f}", None),
+    ]
+    render_kpis(kpis_bs, cols_per_row=2)
 
     st.markdown("---")
     st.subheader("Balance Sheet Detail")
-    st.dataframe(bs)
+    st.dataframe(bs, use_container_width=True, height=400)
 
 # ---------- CASH FLOW PAGE ----------
 
@@ -466,12 +491,14 @@ elif page == "Cash Flow":
     end = cf.loc[cf["Line Item"] == "Ending Cash", "Current Period"].iloc[0]
     delta = end - beg
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Beginning Cash", f"${beg:,.0f}")
-    c2.metric("Ending Cash", f"${end:,.0f}", f"${delta:,.0f}")
-    c3.metric("Net Cash Change", f"${delta:,.0f}")
+    kpis_cf = [
+        ("Beginning Cash", f"${beg:,.0f}", None),
+        ("Ending Cash", f"${end:,.0f}", f"${delta:,.0f}"),
+        ("Net Cash Change", f"${delta:,.0f}", None),
+    ]
+    render_kpis(kpis_cf, cols_per_row=2)
 
     st.markdown("---")
 
     st.subheader("Cash Flow by Section")
-    st.dataframe(cf)
+    st.dataframe(cf, use_container_width=True, height=400)
