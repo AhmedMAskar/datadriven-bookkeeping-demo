@@ -13,7 +13,7 @@ DATA_DIR = Path("data")
 
 # Map industries to core P&L files
 INDUSTRY_FILES = {
-    "Construction Company": "pl_construction.csv",
+    "Construction/Plumbing/Electrical Company": "pl_construction.csv",
     "Dental Practice": "pl_dental.csv",
     "Medical Office / Clinic": "pl_medical_office.csv",
     "Lawn Care & Landscaping": "pl_lawn_care.csv",
@@ -24,7 +24,7 @@ INDUSTRY_FILES = {
 
 # Monthly trend P&L
 INDUSTRY_TREND_FILES = {
-    "Construction Company": "pl_construction_monthly_trend.csv",
+    "Construction/Plumbing/Electrical Company": "pl_construction_monthly_trend.csv",
     "Dental Practice": "pl_dental_monthly_trend.csv",
     "Medical Office / Clinic": "pl_medical_office_monthly_trend.csv",
     "Lawn Care & Landscaping": "pl_lawn_care_monthly_trend.csv",
@@ -35,7 +35,7 @@ INDUSTRY_TREND_FILES = {
 
 # Balance Sheets
 INDUSTRY_BS_FILES = {
-    "Construction Company": "bs_construction.csv",
+    "Construction/Plumbing/Electrical Company": "bs_construction.csv",
     "Dental Practice": "bs_dental.csv",
     "Medical Office / Clinic": "bs_medical_office.csv",
     "Lawn Care & Landscaping": "bs_lawn_care.csv",
@@ -46,7 +46,7 @@ INDUSTRY_BS_FILES = {
 
 # Cash Flow Statements
 INDUSTRY_CF_FILES = {
-    "Construction Company": "cf_construction.csv",
+    "Construction/Plumbing/Electrical Company": "cf_construction.csv",
     "Dental Practice": "cf_dental.csv",
     "Medical Office / Clinic": "cf_medical_office.csv",
     "Lawn Care & Landscaping": "cf_lawn_care.csv",
@@ -57,7 +57,7 @@ INDUSTRY_CF_FILES = {
 
 # Spatial ZIP data
 INDUSTRY_SPATIAL_FILES = {
-    "Construction Company": "spatial_construction.csv",
+    "Construction/Plumbing/Electrical Company": "spatial_construction.csv",
     "Dental Practice": "spatial_dentist.csv",
     "Medical Office / Clinic": "spatial_medical_office.csv",
     "Lawn Care & Landscaping": "spatial_lawn_care.csv",
