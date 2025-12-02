@@ -2,8 +2,6 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 import plotly.express as px
-from PIL import Image
-import base64
 
 # -----------------------------------------------------------
 #                      PAGE CONFIG
@@ -35,35 +33,52 @@ st.markdown(
         background-color: {PRIMARY_GREEN};
     }}
 
-    h1, h2, h3, h4, h5, h6, label {{
-        color: {OFF_WHITE};
+    /* MAIN HEADER (Gold) */
+    h1 {{
+        color: {GOLD} !important;
+        font-weight: 700 !important;
     }}
 
+    /* SUBHEADERS (Gold) */
+    h2, h3 {{
+        color: {GOLD} !important;
+        font-weight: 600 !important;
+    }}
+
+    /* BODY TEXT */
     p, li, span, div {{
         color: {OFF_WHITE};
     }}
 
+    /* LABELS (Business Type, View) stay white */
+    label {{
+        color: {OFF_WHITE} !important;
+    }}
+
+    /* LINKS (Gold) */
     a {{
         color: {GOLD};
-        font-weight:600;
+        font-weight: 600;
     }}
 
     a:hover {{
-        color:#FFE27A;
+        color: #FFE27A;
     }}
 
+    /* KPI styling */
     div[data-testid="stMetricValue"] {{
-        color:{OFF_WHITE};
+        color: {OFF_WHITE};
     }}
 
     div[data-testid="stMetricDelta"] {{
-        color:{GOLD};
+        color: {GOLD};
     }}
 
+    /* DataFrame Styling */
     div[data-testid="stDataFrame"] {{
-        background-color:#FFFFFF !important;
-        color:#000000 !important;
-        border-radius:6px;
+        background-color: #FFFFFF !important;
+        color: #000000 !important;
+        border-radius: 6px;
     }}
     </style>
     """,
@@ -71,30 +86,11 @@ st.markdown(
 )
 
 # -----------------------------------------------------------
-#                      CLEAN HEADER
+#                      HEADER TITLE
 # -----------------------------------------------------------
-# st.markdown(
-#     """
-#     <h1 style="
-#         text-align:center;
-#         color:#F6F5F0;
-#         margin-top:15px;
-#         margin-bottom:5px;
-#         font-weight:700;">
-#         DataDriven Bookkeeping Demo
-#     </h1>
-#     """,
-#     unsafe_allow_html=True,
-# )
-# ----- CLEAN HEADER (GOLD COLOR) -----
 st.markdown(
     """
-    <h1 style="
-        text-align:center;
-        color:#F4C542;
-        margin-top:15px;
-        margin-bottom:5px;
-        font-weight:700;">
+    <h1 style="text-align:center; margin-top:15px; margin-bottom:5px;">
         DataDriven Bookkeeping Demo
     </h1>
     """,
@@ -107,7 +103,7 @@ st.markdown(
 DATA_DIR = Path("data")
 
 # -----------------------------------------------------------
-#                INDUSTRY NAME REPLACEMENTS
+#                INDUSTRY FILE MAPPINGS
 # -----------------------------------------------------------
 CONSTR_LABEL = "Construction/Plumbing/Electrical Company"
 
@@ -162,9 +158,8 @@ INDUSTRY_SPATIAL_FILES = {
 }
 
 # -----------------------------------------------------------
-#                  HELPER FUNCTIONS
+#                HELPER FUNCTIONS
 # -----------------------------------------------------------
-
 def render_kpis(kpis, cols_per_row=2):
     for i in range(0, len(kpis), cols_per_row):
         row = kpis[i:i+cols_per_row]
@@ -196,7 +191,7 @@ def get_summary_value(summary, name):
     return float(summary.loc[name, "Current Period"]) if name in summary.index else 0
 
 # -----------------------------------------------------------
-#                      PAGE CONTROLS
+#                     PAGE CONTROLS
 # -----------------------------------------------------------
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -233,7 +228,7 @@ oper_margin = operating_profit / total_rev_cur if total_rev_cur else 0
 net_margin = net_income / total_rev_cur if total_rev_cur else 0
 
 # -----------------------------------------------------------
-#                     PAGE 1: P&L
+#                    PAGE: PROFIT & LOSS
 # -----------------------------------------------------------
 if page == "Profit & Loss":
     st.subheader(f"Profit & Loss – {industry}")
@@ -268,10 +263,11 @@ if page == "Profit & Loss":
         st.dataframe(df, use_container_width=True)
 
 # -----------------------------------------------------------
-#                     PAGE 2: Insights
+#                    PAGE: INSIGHTS
 # -----------------------------------------------------------
 elif page == "Insights":
     st.subheader(f"Insights – {industry}")
+
     delta = net_income - summary.loc["NET INCOME (LOSS)", "Prior Period"] \
         if "NET INCOME (LOSS)" in summary.index else 0
 
@@ -280,7 +276,7 @@ elif page == "Insights":
     st.write(f"- Change vs Prior: **${delta:,.0f}**")
 
 # -----------------------------------------------------------
-#                     PAGE 3: Spatial
+#                    PAGE: SPATIAL
 # -----------------------------------------------------------
 elif page == "Spatial":
     st.subheader(f"Spatial Overview – {industry}")
@@ -294,8 +290,8 @@ elif page == "Spatial":
         sdf_clean,
         lat="Latitude",
         lon="Longitude",
-        color=sdf_clean.get("Revenue_Current"),
         size=sdf_clean.get("Revenue_Current"),
+        color=sdf_clean.get("Revenue_Current"),
         mapbox_style="open-street-map",
         zoom=8,
         hover_name="Zip"
@@ -303,10 +299,11 @@ elif page == "Spatial":
     st.plotly_chart(fig_map, use_container_width=True)
 
 # -----------------------------------------------------------
-#                     PAGE 4: Trends
+#                    PAGE: TRENDS
 # -----------------------------------------------------------
 elif page == "Trends":
-    st.subheader(f"Trends – {industry}")
+    st.subheader(f"Monthly Trends – {industry}")
+
     tdf = load_csv(INDUSTRY_TREND_FILES[industry])
 
     fig = px.line(
@@ -318,7 +315,7 @@ elif page == "Trends":
     st.plotly_chart(fig, use_container_width=True)
 
 # -----------------------------------------------------------
-#                  PAGE 5: Balance Sheet
+#                   PAGE: BALANCE SHEET
 # -----------------------------------------------------------
 elif page == "Balance Sheet":
     st.subheader(f"Balance Sheet – {industry}")
@@ -326,7 +323,7 @@ elif page == "Balance Sheet":
     st.dataframe(bs, use_container_width=True)
 
 # -----------------------------------------------------------
-#                      PAGE 6: Cash Flow
+#                     PAGE: CASH FLOW
 # -----------------------------------------------------------
 elif page == "Cash Flow":
     st.subheader(f"Cash Flow – {industry}")
@@ -340,7 +337,7 @@ st.markdown("---")
 
 st.markdown(
     f"""
-    <div style='text-align:center; color:{OFF_WHITE}; font-size:15px; margin-top:15px; line-height:1.6;'>
+    <div style='text-align:center; color:{GOLD}; font-size:15px; margin-top:15px; line-height:1.6;'>
         This sample report was created for small business owners by
         <b>Dr. Ahmed Askar</b> to give you a clear financial picture of your business
         and empower your growth.<br><br>
