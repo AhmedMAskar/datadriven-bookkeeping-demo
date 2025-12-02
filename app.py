@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 import plotly.express as px
+from PIL import Image
 
 # ----- BASIC CONFIG -----
 st.set_page_config(
@@ -9,11 +10,77 @@ st.set_page_config(
     layout="centered",
 )
 
+# ----- BRANDED THEME (GREEN BACKGROUND + GOLD/WHITE TEXT) -----
+PRIMARY_GREEN = "#053126"
+OFF_WHITE = "#F6F5F0"
+GOLD = "#F4C542"
+
+st.markdown(
+    f"""
+    <style>
+    /* App background + base text */
+    .stApp {{
+        background-color: {PRIMARY_GREEN};
+        color: {OFF_WHITE};
+    }}
+
+    /* Main content area */
+    section.main > div {{
+        background-color: {PRIMARY_GREEN};
+    }}
+
+    /* Headings & labels */
+    h1, h2, h3, h4, h5, h6, label, .stRadio label, .stSelectbox label {{
+        color: {OFF_WHITE};
+    }}
+
+    /* Paragraphs and list text */
+    p, li, span, div {{
+        color: {OFF_WHITE};
+    }}
+
+    /* Links */
+    a {{
+        color: {GOLD};
+    }}
+    a:hover {{
+        color: #FFE27A;
+    }}
+
+    /* Metrics */
+    div[data-testid="stMetricValue"] {{
+        color: {OFF_WHITE};
+    }}
+    div[data-testid="stMetricDelta"] {{
+        color: {GOLD};
+    }}
+
+    /* DataFrames: keep them readable (white background, dark text) */
+    div[data-testid="stDataFrame"] {{
+        background-color: #FFFFFF !important;
+        color: #000000 !important;
+        border-radius: 6px;
+    }}
+
+    /* Expander headers */
+    details > summary {{
+        color: {OFF_WHITE};
+    }}
+
+    /* Radio/Selectbox options text */
+    div[role="radiogroup"] label, div[data-baseweb="select"] * {{
+        color: {OFF_WHITE};
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 DATA_DIR = Path("data")
 
 # Map industries to core P&L files
 INDUSTRY_FILES = {
-    "Construction/Plumbing/Electrical Company": "pl_construction.csv",
+    "Construction Company": "pl_construction.csv",
     "Dental Practice": "pl_dental.csv",
     "Medical Office / Clinic": "pl_medical_office.csv",
     "Lawn Care & Landscaping": "pl_lawn_care.csv",
@@ -24,7 +91,7 @@ INDUSTRY_FILES = {
 
 # Monthly trend P&L
 INDUSTRY_TREND_FILES = {
-    "Construction/Plumbing/Electrical Company": "pl_construction_monthly_trend.csv",
+    "Construction Company": "pl_construction_monthly_trend.csv",
     "Dental Practice": "pl_dental_monthly_trend.csv",
     "Medical Office / Clinic": "pl_medical_office_monthly_trend.csv",
     "Lawn Care & Landscaping": "pl_lawn_care_monthly_trend.csv",
@@ -35,7 +102,7 @@ INDUSTRY_TREND_FILES = {
 
 # Balance Sheets
 INDUSTRY_BS_FILES = {
-    "Construction/Plumbing/Electrical Company": "bs_construction.csv",
+    "Construction Company": "bs_construction.csv",
     "Dental Practice": "bs_dental.csv",
     "Medical Office / Clinic": "bs_medical_office.csv",
     "Lawn Care & Landscaping": "bs_lawn_care.csv",
@@ -46,7 +113,7 @@ INDUSTRY_BS_FILES = {
 
 # Cash Flow Statements
 INDUSTRY_CF_FILES = {
-    "Construction/Plumbing/Electrical Company": "cf_construction.csv",
+    "Construction Company": "cf_construction.csv",
     "Dental Practice": "cf_dental.csv",
     "Medical Office / Clinic": "cf_medical_office.csv",
     "Lawn Care & Landscaping": "cf_lawn_care.csv",
@@ -57,7 +124,7 @@ INDUSTRY_CF_FILES = {
 
 # Spatial ZIP data
 INDUSTRY_SPATIAL_FILES = {
-    "Construction/Plumbing/Electrical Company": "spatial_construction.csv",
+    "Construction Company": "spatial_construction.csv",
     "Dental Practice": "spatial_dentist.csv",
     "Medical Office / Clinic": "spatial_medical_office.csv",
     "Lawn Care & Landscaping": "spatial_lawn_care.csv",
@@ -65,7 +132,6 @@ INDUSTRY_SPATIAL_FILES = {
     "Restaurant": "spatial_restaurant.csv",
     "Long-Haul Trucking": "spatial_trucking_longhaul.csv",
 }
-
 
 # ---------- HELPERS FOR MOBILE LAYOUT ----------
 
@@ -82,7 +148,6 @@ def render_kpis(kpis, cols_per_row: int = 2):
             with col:
                 st.metric(label, value, delta)
 
-
 # ---------- LOADERS ----------
 
 @st.cache_data
@@ -93,11 +158,9 @@ def load_pl_data(filename: str) -> pd.DataFrame:
             df[col] = pd.to_numeric(df[col], errors="coerce")
     return df
 
-
 @st.cache_data
 def load_csv(filename: str) -> pd.DataFrame:
     return pd.read_csv(DATA_DIR / filename)
-
 
 # Split P&L into sections
 def split_sections(df: pd.DataFrame):
@@ -107,12 +170,10 @@ def split_sections(df: pd.DataFrame):
     summary = df[df["Section"] == "SUMMARY"].set_index("Line Item")
     return revenues, cogs, opex, summary
 
-
 def get_summary_value(summary: pd.DataFrame, name: str) -> float:
     if name in summary.index:
         return float(summary.loc[name, "Current Period"])
     return 0.0
-
 
 def generate_spatial_commentary(industry: str, sdf: pd.DataFrame) -> str:
     """Create a short, white-glove narrative about hot/cold ZIPs."""
@@ -168,21 +229,68 @@ def generate_spatial_commentary(industry: str, sdf: pd.DataFrame) -> str:
 
     return "\n".join(pieces)
 
+# ---------- BRAND HEADER WITH LOGO + CTA ----------
 
-# ---------- TOP CONTROLS (ALWAYS VISIBLE) ----------
+logo = Image.open("/mnt/data/logo_withTagline.png")
+st.image(logo, use_column_width=True)
 
 st.markdown(
     """
-    <h2 style="
+    <div style="
         text-align:center;
-        margin-bottom:0.2rem;
-        font-weight:600;
-    ">
-        DataDriven Bookkeeping Demo
-    </h2>
+        font-size:20px;
+        color:#F4C542;
+        margin-top:-5px;
+        margin-bottom:20px;
+        font-weight:600;">
+        This sample report was created for small businesses like yours by <b>Dr. Ahmed Askar</b><br>
+        to give you, the business owner, a clear financial picture and empower your growth.
+    </div>
     """,
     unsafe_allow_html=True,
 )
+
+st.markdown(
+    """
+    <div style="
+        background-color:rgba(255,255,255,0.10);
+        padding:18px;
+        border-radius:10px;
+        text-align:center;
+        border:1px solid #F4C542;
+        color:#F6F5F0;
+        font-size:17px;
+        line-height:1.45;">
+
+        <b>Need a report like this for your own business?</b><br><br>
+
+        Call us for a quick consultation — this brief, free <b>30-minute consultation</b> is designed to give you clarity.<br>
+        We’ll walk through your bookkeeping setup, discuss any pain points
+        (invoicing, expenses, reconciliation, or reporting), and map out how a
+        <b>data-driven approach</b> can give you clean books and deeper financial visibility.<br><br>
+
+        You’ll leave with a tailored recommendation and clear next steps — even if you decide not to move forward.
+
+        <br><br>
+        <a href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ0RlDh3HxjIPN_w5wEiSXf3IQ29bGR2K1F0NiZ8YzWy7MgbJmRHWpDbaKgiGCJdHPToLw7YVR_y"
+           target="_blank"
+           style="
+               background-color:#F4C542;
+               color:#053126;
+               padding:10px 22px;
+               border-radius:8px;
+               text-decoration:none;
+               font-weight:700;">
+           📅 Book Your Free 30-Min Consultation
+        </a>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown("---")
+
+# ---------- TOP CONTROLS (ALWAYS VISIBLE) ----------
 
 with st.container():
     col1, col2 = st.columns([1, 1])
