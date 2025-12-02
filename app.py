@@ -18,56 +18,39 @@ GOLD = "#F4C542"
 st.markdown(
     f"""
     <style>
-    /* App background + base text */
     .stApp {{
         background-color: {PRIMARY_GREEN};
         color: {OFF_WHITE};
     }}
-
-    /* Main content area */
     section.main > div {{
         background-color: {PRIMARY_GREEN};
     }}
-
-    /* Headings & labels */
     h1, h2, h3, h4, h5, h6, label, .stRadio label, .stSelectbox label {{
         color: {OFF_WHITE};
     }}
-
-    /* Paragraphs and list text */
     p, li, span, div {{
         color: {OFF_WHITE};
     }}
-
-    /* Links */
     a {{
         color: {GOLD};
     }}
     a:hover {{
         color: #FFE27A;
     }}
-
-    /* Metrics */
     div[data-testid="stMetricValue"] {{
         color: {OFF_WHITE};
     }}
     div[data-testid="stMetricDelta"] {{
         color: {GOLD};
     }}
-
-    /* DataFrames: keep them readable (white background, dark text) */
     div[data-testid="stDataFrame"] {{
         background-color: #FFFFFF !important;
         color: #000000 !important;
         border-radius: 6px;
     }}
-
-    /* Expander headers */
     details > summary {{
         color: {OFF_WHITE};
     }}
-
-    /* Radio/Selectbox options text */
     div[role="radiogroup"] label, div[data-baseweb="select"] * {{
         color: {OFF_WHITE};
     }}
@@ -78,9 +61,12 @@ st.markdown(
 
 DATA_DIR = Path("data")
 
-# Map industries to core P&L files
+# ---------- INDUSTRY FILE MAPS (UPDATED LABEL FOR CONSTRUCTION) ----------
+
+CONSTR_LABEL = "Construction/Plumbing/Electrical Company"
+
 INDUSTRY_FILES = {
-    "Construction Company": "pl_construction.csv",
+    CONSTR_LABEL: "pl_construction.csv",
     "Dental Practice": "pl_dental.csv",
     "Medical Office / Clinic": "pl_medical_office.csv",
     "Lawn Care & Landscaping": "pl_lawn_care.csv",
@@ -89,9 +75,8 @@ INDUSTRY_FILES = {
     "Long-Haul Trucking": "pl_trucking_longhaul.csv",
 }
 
-# Monthly trend P&L
 INDUSTRY_TREND_FILES = {
-    "Construction Company": "pl_construction_monthly_trend.csv",
+    CONSTR_LABEL: "pl_construction_monthly_trend.csv",
     "Dental Practice": "pl_dental_monthly_trend.csv",
     "Medical Office / Clinic": "pl_medical_office_monthly_trend.csv",
     "Lawn Care & Landscaping": "pl_lawn_care_monthly_trend.csv",
@@ -100,9 +85,8 @@ INDUSTRY_TREND_FILES = {
     "Long-Haul Trucking": "pl_trucking_longhaul_monthly_trend.csv",
 }
 
-# Balance Sheets
 INDUSTRY_BS_FILES = {
-    "Construction Company": "bs_construction.csv",
+    CONSTR_LABEL: "bs_construction.csv",
     "Dental Practice": "bs_dental.csv",
     "Medical Office / Clinic": "bs_medical_office.csv",
     "Lawn Care & Landscaping": "bs_lawn_care.csv",
@@ -111,9 +95,8 @@ INDUSTRY_BS_FILES = {
     "Long-Haul Trucking": "bs_trucking_longhaul.csv",
 }
 
-# Cash Flow Statements
 INDUSTRY_CF_FILES = {
-    "Construction Company": "cf_construction.csv",
+    CONSTR_LABEL: "cf_construction.csv",
     "Dental Practice": "cf_dental.csv",
     "Medical Office / Clinic": "cf_medical_office.csv",
     "Lawn Care & Landscaping": "cf_lawn_care.csv",
@@ -122,9 +105,8 @@ INDUSTRY_CF_FILES = {
     "Long-Haul Trucking": "cf_trucking_longhaul.csv",
 }
 
-# Spatial ZIP data
 INDUSTRY_SPATIAL_FILES = {
-    "Construction Company": "spatial_construction.csv",
+    CONSTR_LABEL: "spatial_construction.csv",
     "Dental Practice": "spatial_dentist.csv",
     "Medical Office / Clinic": "spatial_medical_office.csv",
     "Lawn Care & Landscaping": "spatial_lawn_care.csv",
@@ -136,11 +118,6 @@ INDUSTRY_SPATIAL_FILES = {
 # ---------- HELPERS FOR MOBILE LAYOUT ----------
 
 def render_kpis(kpis, cols_per_row: int = 2):
-    """
-    Render a list of KPI tuples (label, value, delta) in rows
-    with a fixed number of columns per row.
-    Example kpis: [("Label", "Value", "Delta or None"), ...]
-    """
     for i in range(0, len(kpis), cols_per_row):
         row = kpis[i:i + cols_per_row]
         cols = st.columns(len(row))
@@ -162,7 +139,6 @@ def load_pl_data(filename: str) -> pd.DataFrame:
 def load_csv(filename: str) -> pd.DataFrame:
     return pd.read_csv(DATA_DIR / filename)
 
-# Split P&L into sections
 def split_sections(df: pd.DataFrame):
     revenues = df[df["Section"] == "REVENUES"].copy()
     cogs = df[df["Section"] == "COST OF GOODS SOLD"].copy()
@@ -176,18 +152,14 @@ def get_summary_value(summary: pd.DataFrame, name: str) -> float:
     return 0.0
 
 def generate_spatial_commentary(industry: str, sdf: pd.DataFrame) -> str:
-    """Create a short, white-glove narrative about hot/cold ZIPs."""
     if sdf.empty:
         return "No spatial data available for this sample."
 
-    # Prefer Profit_Current if present, else fall back to Revenue_Current
     value_col = "Profit_Current" if "Profit_Current" in sdf.columns else "Revenue_Current"
     if value_col not in sdf.columns:
         return "Spatial data is available, but key value columns are missing for this sample."
 
     metric_series = pd.to_numeric(sdf[value_col], errors="coerce")
-
-    # Drop NaNs
     valid = ~metric_series.isna()
     if not valid.any():
         return "Spatial data is loaded, but there are no valid numeric values to analyze."
@@ -231,7 +203,9 @@ def generate_spatial_commentary(industry: str, sdf: pd.DataFrame) -> str:
 
 # ---------- BRAND HEADER WITH LOGO + CTA ----------
 
-logo = Image.open("/mnt/data/logo_withTagline.png")
+# FIXED: use repo path, not /mnt/data
+logo_path = DATA_DIR / "logo_withTagline.png"
+logo = Image.open(logo_path)
 st.image(logo, use_column_width=True)
 
 st.markdown(
@@ -341,34 +315,16 @@ if page == "Profit & Loss":
         "Demo only – sample numbers to show how DataDriven Bookkeeping can present your financials."
     )
 
-    # KPIs (2 per row for mobile)
     kpis_pl = [
-        (
-            "Total Revenue (Current)",
-            f"${total_rev_cur:,.0f}",
-            f"${total_rev_cur - total_rev_prev:,.0f}",
-        ),
-        (
-            "Gross Profit",
-            f"${gross_profit:,.0f}",
-            f"{gross_margin*100:,.1f}% margin",
-        ),
-        (
-            "Operating Profit",
-            f"${operating_profit:,.0f}",
-            f"{oper_margin*100:,.1f}% margin",
-        ),
-        (
-            "Net Income",
-            f"${net_income:,.0f}",
-            f"{net_margin*100:,.1f}% margin",
-        ),
+        ("Total Revenue (Current)", f"${total_rev_cur:,.0f}", f"${total_rev_cur - total_rev_prev:,.0f}"),
+        ("Gross Profit", f"${gross_profit:,.0f}", f"{gross_margin*100:,.1f}% margin"),
+        ("Operating Profit", f"${operating_profit:,.0f}", f"{oper_margin*100:,.1f}% margin"),
+        ("Net Income", f"${net_income:,.0f}", f"{net_margin*100:,.1f}% margin"),
     ]
     render_kpis(kpis_pl, cols_per_row=2)
 
     st.markdown("---")
 
-    # Revenue vs COGS
     st.subheader("Revenue vs Cost of Goods Sold")
     cogs_total_cur = cogs["Current Period"].sum()
     cogs_total_prev = cogs["Prior Period"].sum()
@@ -396,7 +352,6 @@ if page == "Profit & Loss":
     fig_rev_cogs.update_layout(yaxis_title="Amount ($)", xaxis_title="")
     st.plotly_chart(fig_rev_cogs, use_container_width=True)
 
-    # Revenue breakdown
     st.subheader("Revenue Breakdown")
     rev_detail = revenues[~revenues["Line Item"].str.contains("TOTAL", case=False)]
     rev_detail_long = rev_detail.melt(
@@ -416,7 +371,6 @@ if page == "Profit & Loss":
     fig_rev_detail.update_layout(yaxis_title="Amount ($)", xaxis_title="")
     st.plotly_chart(fig_rev_detail, use_container_width=True)
 
-    # Top Opex
     st.subheader("Top Operating Expenses")
     opex_sorted = opex.sort_values("Current Period", ascending=False)
     fig_opex = px.bar(
@@ -462,21 +416,19 @@ elif page == "Insights":
         """
     )
 
-# ---------- SPATIAL PAGE (OpenStreetMap + blue→red scale) ----------
+# ---------- SPATIAL PAGE ----------
 
 elif page == "Spatial":
     st.subheader(f"Where Your Clients Are – {industry}")
     spatial_file = INDUSTRY_SPATIAL_FILES[industry]
     sdf = load_csv(spatial_file)
 
-    # Required base columns
     required_cols = ["Zip", "City", "State", "Latitude", "Longitude"]
     missing = [c for c in required_cols if c not in sdf.columns]
     if missing:
         st.error(f"The spatial file for this industry is missing required columns: {', '.join(missing)}")
         st.stop()
 
-    # Coerce numeric columns
     for col in [
         "New_Customers", "Visits",
         "Revenue_Current", "Revenue_Prior",
@@ -486,7 +438,6 @@ elif page == "Spatial":
         if col in sdf.columns:
             sdf[col] = pd.to_numeric(sdf[col], errors="coerce")
 
-    # Summary metrics (with safe fallbacks)
     total_new = int(sdf["New_Customers"].sum()) if "New_Customers" in sdf.columns else 0
     total_visits = int(sdf["Visits"].sum()) if "Visits" in sdf.columns else 0
     total_rev = float(sdf["Revenue_Current"].sum()) if "Revenue_Current" in sdf.columns else 0.0
@@ -504,17 +455,13 @@ elif page == "Spatial":
 
     st.subheader("ZIP-Level Performance Map")
 
-    # Choose metric for color/size
     value_col = "Profit_Current" if "Profit_Current" in sdf.columns else "Revenue_Current"
     size_col = "Revenue_Current" if "Revenue_Current" in sdf.columns else value_col
 
     if value_col not in sdf.columns:
         st.warning("Spatial data is present, but no Profit_Current or Revenue_Current field is available to map.")
     else:
-        # Drop rows with missing coords or metric
         sdf_map = sdf.dropna(subset=["Latitude", "Longitude", value_col]).copy()
-
-        # Center & zoom for nicer OSM view
         center_lat = sdf_map["Latitude"].mean()
         center_lon = sdf_map["Longitude"].mean()
 
@@ -531,7 +478,7 @@ elif page == "Spatial":
                     "Revenue_Current", "Profit_Current"
                 ] if c in sdf.columns
             ],
-            color_continuous_scale=["blue", "lightgray", "red"],  # blue=cold, red=hot
+            color_continuous_scale=["blue", "lightgray", "red"],
             zoom=9,
             center={"lat": center_lat, "lon": center_lon},
             title="Hot & Cold ZIP Codes (OpenStreetMap background)"
