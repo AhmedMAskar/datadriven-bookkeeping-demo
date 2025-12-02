@@ -615,7 +615,7 @@ st.markdown(
         <b>Dr. Ahmed Askar</b> to give you a clear financial picture of your business
         and empower your growth.<br><br>
 
-        Visit DataDrivenBookkeeper.com to learn more.
+        DataDrivenBookkeeper.com
     </div>
     """,
     unsafe_allow_html=True,
