@@ -73,11 +73,25 @@ st.markdown(
 # -----------------------------------------------------------
 #                      CLEAN HEADER
 # -----------------------------------------------------------
+# st.markdown(
+#     """
+#     <h1 style="
+#         text-align:center;
+#         color:#F6F5F0;
+#         margin-top:15px;
+#         margin-bottom:5px;
+#         font-weight:700;">
+#         DataDriven Bookkeeping Demo
+#     </h1>
+#     """,
+#     unsafe_allow_html=True,
+# )
+# ----- CLEAN HEADER (GOLD COLOR) -----
 st.markdown(
     """
     <h1 style="
         text-align:center;
-        color:#F6F5F0;
+        color:#F4C542;
         margin-top:15px;
         margin-bottom:5px;
         font-weight:700;">
