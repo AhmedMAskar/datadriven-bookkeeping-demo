@@ -3,6 +3,7 @@ import pandas as pd
 from pathlib import Path
 import plotly.express as px
 from PIL import Image
+import base64
 
 # ----- BASIC CONFIG -----
 st.set_page_config(
@@ -10,11 +11,12 @@ st.set_page_config(
     layout="centered",
 )
 
-# ----- BRANDED THEME (GREEN BACKGROUND + GOLD/WHITE TEXT) -----
+# ----- COLORS -----
 PRIMARY_GREEN = "#053126"
 OFF_WHITE = "#F6F5F0"
 GOLD = "#F4C542"
 
+# ----- GLOBAL CSS -----
 st.markdown(
     f"""
     <style>
@@ -25,7 +27,7 @@ st.markdown(
     section.main > div {{
         background-color: {PRIMARY_GREEN};
     }}
-    h1, h2, h3, h4, h5, h6, label, .stRadio label, .stSelectbox label {{
+    h1, h2, h3, h4, h5, h6, label {{
         color: {OFF_WHITE};
     }}
     p, li, span, div {{
@@ -33,6 +35,7 @@ st.markdown(
     }}
     a {{
         color: {GOLD};
+        font-weight:600;
     }}
     a:hover {{
         color: #FFE27A;
@@ -44,27 +47,41 @@ st.markdown(
         color: {GOLD};
     }}
     div[data-testid="stDataFrame"] {{
-        background-color: #FFFFFF !important;
-        color: #000000 !important;
-        border-radius: 6px;
-    }}
-    details > summary {{
-        color: {OFF_WHITE};
-    }}
-    div[role="radiogroup"] label, div[data-baseweb="select"] * {{
-        color: {OFF_WHITE};
+        background-color:#ffffff !important;
+        color:#000000 !important;
+        border-radius:6px;
     }}
     </style>
     """,
     unsafe_allow_html=True,
 )
 
+# ----- SMALL LOGO TOP-LEFT -----
+logo_bytes = open("data/logo_withTagline.png", "rb").read()
+logo_b64 = base64.b64encode(logo_bytes).decode()
+
+st.markdown(
+    f"""
+    <div style="
+        position:fixed;
+        top:10px;
+        left:10px;
+        z-index:999;
+    ">
+        <img src="data:image/png;base64,{logo_b64}"
+             style="width:90px; border-radius:4px;">
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+# ----- DATA DIRECTORY -----
 DATA_DIR = Path("data")
 
-# ---------- INDUSTRY FILE MAPS (UPDATED LABEL FOR CONSTRUCTION) ----------
-
+# ---------- INDUSTRY LABEL UPDATE ----------
 CONSTR_LABEL = "Construction/Plumbing/Electrical Company"
 
+# ---------- FILE MAPPINGS ----------
 INDUSTRY_FILES = {
     CONSTR_LABEL: "pl_construction.csv",
     "Dental Practice": "pl_dental.csv",
@@ -115,20 +132,17 @@ INDUSTRY_SPATIAL_FILES = {
     "Long-Haul Trucking": "spatial_trucking_longhaul.csv",
 }
 
-# ---------- HELPERS FOR MOBILE LAYOUT ----------
+# ----- HELPERS -----
 
-def render_kpis(kpis, cols_per_row: int = 2):
+def render_kpis(kpis, cols_per_row=2):
     for i in range(0, len(kpis), cols_per_row):
         row = kpis[i:i + cols_per_row]
         cols = st.columns(len(row))
         for col, (label, value, delta) in zip(cols, row):
-            with col:
-                st.metric(label, value, delta)
-
-# ---------- LOADERS ----------
+            col.metric(label, value, delta)
 
 @st.cache_data
-def load_pl_data(filename: str) -> pd.DataFrame:
+def load_pl_data(filename):
     df = pd.read_csv(DATA_DIR / filename)
     for col in ["Current Period", "Prior Period", "Change"]:
         if col in df.columns:
@@ -136,168 +150,43 @@ def load_pl_data(filename: str) -> pd.DataFrame:
     return df
 
 @st.cache_data
-def load_csv(filename: str) -> pd.DataFrame:
+def load_csv(filename):
     return pd.read_csv(DATA_DIR / filename)
 
-def split_sections(df: pd.DataFrame):
-    revenues = df[df["Section"] == "REVENUES"].copy()
-    cogs = df[df["Section"] == "COST OF GOODS SOLD"].copy()
-    opex = df[df["Section"] == "OPERATING EXPENSES"].copy()
-    summary = df[df["Section"] == "SUMMARY"].set_index("Line Item")
-    return revenues, cogs, opex, summary
+def split_sections(df):
+    return (
+        df[df["Section"] == "REVENUES"].copy(),
+        df[df["Section"] == "COST OF GOODS SOLD"].copy(),
+        df[df["Section"] == "OPERATING EXPENSES"].copy(),
+        df[df["Section"] == "SUMMARY"].set_index("Line Item")
+    )
 
-def get_summary_value(summary: pd.DataFrame, name: str) -> float:
-    if name in summary.index:
-        return float(summary.loc[name, "Current Period"])
-    return 0.0
+def get_summary_value(summary, name):
+    return float(summary.loc[name, "Current Period"]) if name in summary.index else 0.0
 
-def generate_spatial_commentary(industry: str, sdf: pd.DataFrame) -> str:
-    if sdf.empty:
-        return "No spatial data available for this sample."
+# ----- PAGE CONTROLS -----
+st.markdown("<br><br>", unsafe_allow_html=True)  # spacing under logo
 
-    value_col = "Profit_Current" if "Profit_Current" in sdf.columns else "Revenue_Current"
-    if value_col not in sdf.columns:
-        return "Spatial data is available, but key value columns are missing for this sample."
+colA, colB = st.columns([1,1])
+with colA:
+    industry = st.selectbox("Business Type", list(INDUSTRY_FILES.keys()))
 
-    metric_series = pd.to_numeric(sdf[value_col], errors="coerce")
-    valid = ~metric_series.isna()
-    if not valid.any():
-        return "Spatial data is loaded, but there are no valid numeric values to analyze."
-
-    metric_series = metric_series[valid]
-    sdf_valid = sdf.loc[valid].copy()
-
-    q20 = metric_series.quantile(0.2)
-    q80 = metric_series.quantile(0.8)
-
-    hot = sdf_valid[metric_series >= q80]
-    cold = sdf_valid[metric_series <= q20]
-
-    def fmt_zip_block(df_slice: pd.DataFrame) -> str:
-        rows = []
-        for _, row in df_slice.head(4).iterrows():
-            try:
-                z = int(row["Zip"])
-            except Exception:
-                z = row["Zip"]
-            rows.append(f"{z} ({row['City']})")
-        return ", ".join(rows)
-
-    hot_txt = fmt_zip_block(hot) if not hot.empty else ""
-    cold_txt = fmt_zip_block(cold) if not cold.empty else ""
-
-    pieces = []
-    if hot_txt:
-        pieces.append(
-            f"- **Hot spots** for {industry.lower()} performance are clustering around **{hot_txt}**."
-        )
-    if cold_txt:
-        pieces.append(
-            f"- **Cold spots** (underperforming ZIPs) include **{cold_txt}**."
-        )
-
-    if not pieces:
-        return "Performance looks fairly even across ZIP codes with no strong hot or cold pockets."
-
-    return "\n".join(pieces)
-
-# ---------- BRAND HEADER WITH LOGO + CTA ----------
-
-# FIXED: use repo path, not /mnt/data
-logo_path = DATA_DIR / "logo_withTagline.png"
-logo = Image.open(logo_path)
-st.image(logo, use_column_width=True)
-
-st.markdown(
-    """
-    <div style="
-        text-align:center;
-        font-size:20px;
-        color:#F4C542;
-        margin-top:-5px;
-        margin-bottom:20px;
-        font-weight:600;">
-        This sample report was created for small businesses like yours by <b>Dr. Ahmed Askar</b><br>
-        to give you, the business owner, a clear financial picture and empower your growth.
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-st.markdown(
-    """
-    <div style="
-        background-color:rgba(255,255,255,0.10);
-        padding:18px;
-        border-radius:10px;
-        text-align:center;
-        border:1px solid #F4C542;
-        color:#F6F5F0;
-        font-size:17px;
-        line-height:1.45;">
-
-        <b>Need a report like this for your own business?</b><br><br>
-
-        Call us for a quick consultation — this brief, free <b>30-minute consultation</b> is designed to give you clarity.<br>
-        We’ll walk through your bookkeeping setup, discuss any pain points
-        (invoicing, expenses, reconciliation, or reporting), and map out how a
-        <b>data-driven approach</b> can give you clean books and deeper financial visibility.<br><br>
-
-        You’ll leave with a tailored recommendation and clear next steps — even if you decide not to move forward.
-
-        <br><br>
-        <a href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ0RlDh3HxjIPN_w5wEiSXf3IQ29bGR2K1F0NiZ8YzWy7MgbJmRHWpDbaKgiGCJdHPToLw7YVR_y"
-           target="_blank"
-           style="
-               background-color:#F4C542;
-               color:#053126;
-               padding:10px 22px;
-               border-radius:8px;
-               text-decoration:none;
-               font-weight:700;">
-           📅 Book Your Free 30-Min Consultation
-        </a>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+with colB:
+    page = st.radio(
+        "View",
+        ["Profit & Loss", "Insights", "Spatial", "Trends", "Balance Sheet", "Cash Flow"],
+        horizontal=True
+    )
 
 st.markdown("---")
 
-# ---------- TOP CONTROLS (ALWAYS VISIBLE) ----------
-
-with st.container():
-    col1, col2 = st.columns([1, 1])
-
-    with col1:
-        industry = st.selectbox(
-            "Sample client type",
-            list(INDUSTRY_FILES.keys()),
-            key="industry_select",
-        )
-
-    with col2:
-        page = st.radio(
-            "View",
-            ["Profit & Loss", "Insights", "Spatial", "Trends", "Balance Sheet", "Cash Flow"],
-            horizontal=True,
-            key="view_radio",
-        )
-
-st.markdown("---")
-
-# ---------- SHARED PRE-CALCS ----------
-
+# ----- LOAD DATA -----
 filename = INDUSTRY_FILES[industry]
 df = load_pl_data(filename)
 revenues, cogs, opex, summary = split_sections(df)
 
-total_rev_cur = revenues.loc[
-    revenues["Line Item"].str.contains("TOTAL", case=False), "Current Period"
-].sum()
-total_rev_prev = revenues.loc[
-    revenues["Line Item"].str.contains("TOTAL", case=False), "Prior Period"
-].sum()
+total_rev_cur = revenues[revenues["Line Item"].str.contains("TOTAL", case=False)]["Current Period"].sum()
+total_rev_prev = revenues[revenues["Line Item"].str.contains("TOTAL", case=False)]["Prior Period"].sum()
 
 gross_profit = get_summary_value(summary, "GROSS PROFIT (LOSS)")
 operating_profit = get_summary_value(summary, "OPERATING PROFIT (LOSS)")
@@ -307,275 +196,122 @@ gross_margin = gross_profit / total_rev_cur if total_rev_cur else 0
 oper_margin = operating_profit / total_rev_cur if total_rev_cur else 0
 net_margin = net_income / total_rev_cur if total_rev_cur else 0
 
-# ---------- P&L PAGE ----------
+# =========================================================
+#                     MAIN PAGES
+# =========================================================
 
 if page == "Profit & Loss":
     st.subheader(f"Profit & Loss – {industry}")
-    st.caption(
-        "Demo only – sample numbers to show how DataDriven Bookkeeping can present your financials."
-    )
 
-    kpis_pl = [
-        ("Total Revenue (Current)", f"${total_rev_cur:,.0f}", f"${total_rev_cur - total_rev_prev:,.0f}"),
-        ("Gross Profit", f"${gross_profit:,.0f}", f"{gross_margin*100:,.1f}% margin"),
-        ("Operating Profit", f"${operating_profit:,.0f}", f"{oper_margin*100:,.1f}% margin"),
-        ("Net Income", f"${net_income:,.0f}", f"{net_margin*100:,.1f}% margin"),
+    kpis = [
+        ("Total Revenue", f"${total_rev_cur:,.0f}", f"${total_rev_cur-total_rev_prev:,.0f}"),
+        ("Gross Profit", f"${gross_profit:,.0f}", f"{gross_margin*100:,.1f}%"),
+        ("Operating Profit", f"${operating_profit:,.0f}", f"{oper_margin*100:,.1f}%"),
+        ("Net Income", f"${net_income:,.0f}", f"{net_margin*100:,.1f}%"),
     ]
-    render_kpis(kpis_pl, cols_per_row=2)
+    render_kpis(kpis)
 
     st.markdown("---")
 
-    st.subheader("Revenue vs Cost of Goods Sold")
-    cogs_total_cur = cogs["Current Period"].sum()
-    cogs_total_prev = cogs["Prior Period"].sum()
-
+    # Revenue vs COGS chart
     rev_cogs_df = pd.DataFrame({
-        "Category": ["Revenue", "Cost of Goods Sold"],
-        "Current Period": [total_rev_cur, cogs_total_cur],
-        "Prior Period": [total_rev_prev, cogs_total_prev],
+        "Category": ["Revenue", "COGS"],
+        "Current": [total_rev_cur, cogs["Current Period"].sum()],
+        "Prior": [total_rev_prev, cogs["Prior Period"].sum()]
     })
 
-    rev_cogs_long = rev_cogs_df.melt(
-        id_vars="Category",
-        var_name="Period",
-        value_name="Amount"
+    fig = px.bar(
+        rev_cogs_df.melt(id_vars="Category", var_name="Period", value_name="Amount"),
+        x="Category", y="Amount", color="Period",
+        barmode="group", title="Revenue vs COGS"
     )
+    st.plotly_chart(fig, use_container_width=True)
 
-    fig_rev_cogs = px.bar(
-        rev_cogs_long,
-        x="Category",
-        y="Amount",
-        color="Period",
-        barmode="group",
-        title="Current vs Prior Period – Revenue & COGS"
-    )
-    fig_rev_cogs.update_layout(yaxis_title="Amount ($)", xaxis_title="")
-    st.plotly_chart(fig_rev_cogs, use_container_width=True)
+    with st.expander("View Full P&L"):
+        st.dataframe(df, use_container_width=True)
 
-    st.subheader("Revenue Breakdown")
-    rev_detail = revenues[~revenues["Line Item"].str.contains("TOTAL", case=False)]
-    rev_detail_long = rev_detail.melt(
-        id_vars=["Line Item"],
-        value_vars=["Current Period", "Prior Period"],
-        var_name="Period",
-        value_name="Amount"
-    )
-    fig_rev_detail = px.bar(
-        rev_detail_long,
-        x="Line Item",
-        y="Amount",
-        color="Period",
-        barmode="group",
-        title="Revenue by Line Item"
-    )
-    fig_rev_detail.update_layout(yaxis_title="Amount ($)", xaxis_title="")
-    st.plotly_chart(fig_rev_detail, use_container_width=True)
-
-    st.subheader("Top Operating Expenses")
-    opex_sorted = opex.sort_values("Current Period", ascending=False)
-    fig_opex = px.bar(
-        opex_sorted.head(15),
-        x="Line Item",
-        y="Current Period",
-        title="Top Operating Expense Categories (Current Period)"
-    )
-    fig_opex.update_layout(yaxis_title="Amount ($)", xaxis_title="")
-    st.plotly_chart(fig_opex, use_container_width=True)
-
-    with st.expander("Full P&L Detail"):
-        st.dataframe(df, use_container_width=True, height=400)
-
-# ---------- INSIGHTS PAGE ----------
+# ---------------- Insights -----------------
 
 elif page == "Insights":
     st.subheader(f"Commentary & Insights – {industry}")
 
-    net_income_cur = get_summary_value(summary, "NET INCOME (LOSS)")
-    net_income_prev = summary.loc["NET INCOME (LOSS)", "Prior Period"] if "NET INCOME (LOSS)" in summary.index else 0
-    delta = net_income_cur - net_income_prev
-    pct = (delta / net_income_prev * 100) if net_income_prev else None
+    delta = net_income - summary.loc["NET INCOME (LOSS)", "Prior Period"] \
+        if "NET INCOME (LOSS)" in summary.index else 0
 
-    st.markdown("#### High-level trend")
-    st.write(f"- Revenue: **${total_rev_cur:,.0f}** (prior: ${total_rev_prev:,.0f})")
-    st.write(f"- Net income: **${net_income_cur:,.0f}** (prior: ${net_income_prev:,.0f})")
+    st.write(f"- Current Revenue: **${total_rev_cur:,.0f}**")
+    st.write(f"- Net Income: **${net_income:,.0f}**")
+    st.write(f"- Change: **${delta:,.0f}**")
 
-    if pct is not None:
-        st.write(f"- Net income change: **${delta:,.0f} ({pct:,.1f}%)**")
-
-    if pct is not None and pct > 0:
-        st.success("Profitability improved vs prior period.")
-    elif pct is not None and pct < 0:
-        st.warning("Profitability declined vs prior period.")
-    else:
-        st.info("Profitability is roughly flat vs prior period.")
-
-    st.markdown(
-        """
-        This is the type of monthly summary your clients would receive in plain English,
-        highlighting movements in revenue, margins, and major expense categories.
-        """
-    )
-
-# ---------- SPATIAL PAGE ----------
+# ---------------- Spatial -----------------
 
 elif page == "Spatial":
     st.subheader(f"Where Your Clients Are – {industry}")
-    spatial_file = INDUSTRY_SPATIAL_FILES[industry]
-    sdf = load_csv(spatial_file)
 
-    required_cols = ["Zip", "City", "State", "Latitude", "Longitude"]
-    missing = [c for c in required_cols if c not in sdf.columns]
-    if missing:
-        st.error(f"The spatial file for this industry is missing required columns: {', '.join(missing)}")
-        st.stop()
+    sdf = load_csv(INDUSTRY_SPATIAL_FILES[industry])
 
-    for col in [
-        "New_Customers", "Visits",
-        "Revenue_Current", "Revenue_Prior",
-        "Profit_Current", "Profit_Prior",
-        "Latitude", "Longitude"
-    ]:
-        if col in sdf.columns:
-            sdf[col] = pd.to_numeric(sdf[col], errors="coerce")
+    # Basic requirements
+    for col in ["Latitude", "Longitude"]:
+        sdf[col] = pd.to_numeric(sdf[col], errors="coerce")
 
-    total_new = int(sdf["New_Customers"].sum()) if "New_Customers" in sdf.columns else 0
-    total_visits = int(sdf["Visits"].sum()) if "Visits" in sdf.columns else 0
-    total_rev = float(sdf["Revenue_Current"].sum()) if "Revenue_Current" in sdf.columns else 0.0
-    total_profit = float(sdf["Profit_Current"].sum()) if "Profit_Current" in sdf.columns else 0.0
+    sdf_clean = sdf.dropna(subset=["Latitude", "Longitude"])
 
-    kpis_spatial = [
-        ("New Customers (Period)", f"{total_new:,}", None),
-        ("Total Visits / Jobs", f"{total_visits:,}", None),
-        ("Revenue (Current Period)", f"${total_rev:,.0f}", None),
-        ("Estimated Profit (Current)", f"${total_profit:,.0f}", None),
-    ]
-    render_kpis(kpis_spatial, cols_per_row=2)
+    fig_map = px.scatter_mapbox(
+        sdf_clean,
+        lat="Latitude", lon="Longitude",
+        size=sdf_clean.get("Revenue_Current", None),
+        color=sdf_clean.get("Revenue_Current", None),
+        zoom=8,
+        mapbox_style="open-street-map",
+        hover_name="Zip"
+    )
+    st.plotly_chart(fig_map, use_container_width=True)
 
-    st.markdown("---")
-
-    st.subheader("ZIP-Level Performance Map")
-
-    value_col = "Profit_Current" if "Profit_Current" in sdf.columns else "Revenue_Current"
-    size_col = "Revenue_Current" if "Revenue_Current" in sdf.columns else value_col
-
-    if value_col not in sdf.columns:
-        st.warning("Spatial data is present, but no Profit_Current or Revenue_Current field is available to map.")
-    else:
-        sdf_map = sdf.dropna(subset=["Latitude", "Longitude", value_col]).copy()
-        center_lat = sdf_map["Latitude"].mean()
-        center_lon = sdf_map["Longitude"].mean()
-
-        fig_map = px.scatter_mapbox(
-            sdf_map,
-            lat="Latitude",
-            lon="Longitude",
-            color=value_col,
-            size=size_col,
-            hover_name="Zip",
-            hover_data=[
-                c for c in [
-                    "City", "New_Customers", "Visits",
-                    "Revenue_Current", "Profit_Current"
-                ] if c in sdf.columns
-            ],
-            color_continuous_scale=["blue", "lightgray", "red"],
-            zoom=9,
-            center={"lat": center_lat, "lon": center_lon},
-            title="Hot & Cold ZIP Codes (OpenStreetMap background)"
-        )
-
-        fig_map.update_layout(
-            mapbox_style="open-street-map",
-            margin=dict(l=0, r=0, t=40, b=0),
-            coloraxis_colorbar_title="Performance"
-        )
-
-        st.plotly_chart(fig_map, use_container_width=True)
-
-    st.subheader("Narrative Summary")
-    st.markdown(generate_spatial_commentary(industry, sdf))
-
-    with st.expander("Underlying ZIP Table"):
-        st.dataframe(sdf, use_container_width=True, height=400)
-
-# ---------- TRENDS PAGE ----------
+# ---------------- Trends -----------------
 
 elif page == "Trends":
     st.subheader(f"Monthly Trends – {industry}")
-    trend_file = INDUSTRY_TREND_FILES[industry]
-    tdf = load_csv(trend_file)
 
-    month_order = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
-    if "Month" in tdf.columns:
-        tdf["Month"] = pd.Categorical(tdf["Month"], categories=month_order, ordered=True)
-        tdf = tdf.sort_values("Month")
+    tdf = load_csv(INDUSTRY_TREND_FILES[industry])
 
-    st.markdown("#### Revenue & Net Income Over Time")
-    fig_trend = px.line(
+    fig = px.line(
         tdf,
-        x="Month",
-        y=["Total_Revenue", "Net_Income"],
-        markers=True,
-        title="Monthly Revenue & Net Income"
+        x="Month", y=["Total_Revenue", "Net_Income"],
+        markers=True, title="Revenue & Net Income Trend"
     )
-    fig_trend.update_layout(yaxis_title="Amount ($)", legend_title="")
-    st.plotly_chart(fig_trend, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("#### Gross Profit vs Operating Expenses")
-    fig_gp = px.line(
-        tdf,
-        x="Month",
-        y=["Gross_Profit", "Operating_Expenses"],
-        markers=True,
-        title="Gross Profit vs Operating Expenses"
-    )
-    fig_gp.update_layout(yaxis_title="Amount ($)", legend_title="")
-    st.plotly_chart(fig_gp, use_container_width=True)
-
-    with st.expander("Raw Trend Data"):
-        st.dataframe(tdf, use_container_width=True, height=400)
-
-# ---------- BALANCE SHEET PAGE ----------
+# ---------------- Balance Sheet -----------------
 
 elif page == "Balance Sheet":
     st.subheader(f"Balance Sheet – {industry}")
-    bs_file = INDUSTRY_BS_FILES[industry]
-    bs = load_csv(bs_file)
+    bs = load_csv(INDUSTRY_BS_FILES[industry])
+    st.dataframe(bs, use_container_width=True)
 
-    total_assets = bs.loc[bs["Line Item"] == "TOTAL ASSETS", "Current Period"].iloc[0]
-    total_liab = bs.loc[bs["Line Item"] == "TOTAL LIABILITIES", "Current Period"].iloc[0]
-    total_equity = bs.loc[bs["Line Item"] == "TOTAL EQUITY", "Current Period"].iloc[0]
-
-    kpis_bs = [
-        ("Total Assets", f"${total_assets:,.0f}", None),
-        ("Total Liabilities", f"${total_liab:,.0f}", None),
-        ("Total Equity", f"${total_equity:,.0f}", None),
-    ]
-    render_kpis(kpis_bs, cols_per_row=2)
-
-    st.markdown("---")
-    st.subheader("Balance Sheet Detail")
-    st.dataframe(bs, use_container_width=True, height=400)
-
-# ---------- CASH FLOW PAGE ----------
+# ---------------- Cash Flow -----------------
 
 elif page == "Cash Flow":
     st.subheader(f"Cash Flow – {industry}")
-    cf_file = INDUSTRY_CF_FILES[industry]
-    cf = load_csv(cf_file)
+    cf = load_csv(INDUSTRY_CF_FILES[industry])
+    st.dataframe(cf, use_container_width=True)
 
-    beg = cf.loc[cf["Line Item"] == "Beginning Cash", "Current Period"].iloc[0]
-    end = cf.loc[cf["Line Item"] == "Ending Cash", "Current Period"].iloc[0]
-    delta = end - beg
+# =========================================================
+#                         FOOTER
+# =========================================================
 
-    kpis_cf = [
-        ("Beginning Cash", f"${beg:,.0f}", None),
-        ("Ending Cash", f"${end:,.0f}", f"${delta:,.0f}"),
-        ("Net Cash Change", f"${delta:,.0f}", None),
-    ]
-    render_kpis(kpis_cf, cols_per_row=2)
+st.markdown("---")
 
-    st.markdown("---")
+st.markdown(
+    f"""
+    <div style='text-align:center; color:{OFF_WHITE}; font-size:15px; margin-top:15px; line-height:1.4;'>
+        This sample report was created for small business owners by <b>Dr. Ahmed Askar</b>
+        to give you a clear financial picture.<br><br>
 
-    st.subheader("Cash Flow by Section")
-    st.dataframe(cf, use_container_width=True, height=400)
+        <a href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ0RlDh3HxjIPN_w5wEiSXf3IQ29bGR2K1F0NiZ8YzWy7MgbJmRHWpDbaKgiGCJdHPToLw7YVR_y"
+           target="_blank"
+           style="color:{GOLD}; font-size:16px; text-decoration:none; font-weight:700;">
+           📅 Book a Free Consultation
+        </a>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
