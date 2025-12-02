@@ -326,15 +326,12 @@ st.markdown("---")
 
 st.markdown(
     f"""
-    <div style='text-align:center; color:{OFF_WHITE}; font-size:15px; margin-top:15px; line-height:1.5;'>
+    <div style='text-align:center; color:{OFF_WHITE}; font-size:15px; margin-top:15px; line-height:1.6;'>
         This sample report was created for small business owners by
-        <b>Dr. Ahmed Askar</b> to give you a clear financial picture.<br><br>
+        <b>Dr. Ahmed Askar</b> to give you a clear financial picture of your business
+        and empower your growth.<br><br>
 
-        <a href="https://DataDrivenBookkeeper.com"
-           target="_blank"
-           style="color:{GOLD}; font-size:16px; text-decoration:none; font-weight:700;">
-           Visit DataDrivenBookkeeper.com to book your consultation
-        </a>
+        Visit DataDrivenBookkeeper.com to learn more.
     </div>
     """,
     unsafe_allow_html=True,
