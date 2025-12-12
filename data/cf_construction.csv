@@ -1,13 +1,19 @@
-Section,Line Item,Current Period,Prior Period,Change
-OPERATING ACTIVITIES,Net Income,195548,187726,7822
-OPERATING ACTIVITIES,Depreciation & Amortization,23465,22291,1174
-OPERATING ACTIVITIES,Change in Working Capital,-5866,-5279,-587
-OPERATING ACTIVITIES,Net Cash from Operating Activities,213147,204738,8409
-INVESTING ACTIVITIES,Purchase of Property & Equipment,-39109,-43019,3910
-INVESTING ACTIVITIES,Net Cash from Investing Activities,-39109,-43019,3910
-FINANCING ACTIVITIES,Debt Principal Payments,-15643,-16425,782
-FINANCING ACTIVITIES,Owner Distributions,-11732,-11145,-587
-FINANCING ACTIVITIES,Net Cash from Financing Activities,-27375,-27570,195
-SUMMARY,Net Increase (Decrease) in Cash,146663,134149,12514
-SUMMARY,Beginning Cash,97774,87996,9778
-SUMMARY,Ending Cash,244437,222145,22292
+Line Item,Current Period,Prior Period
+Net Income,5000,-30000
+Depreciation & Amortization,52000,50000
+Change in Accounts Receivable,-15000,-22000
+Change in Work in Progress / Unbilled,-5000,-8000
+Change in Inventory & Materials,-5000,-3000
+Change in Accounts Payable,10000,6000
+Change in Customer Deposits,5000,4000
+Change in Accrued Payroll & Taxes,2000,1000
+Net Cash from Operating Activities,49000,-52000
+Capital Expenditures,-28000,-25000
+Net Cash from Investing Activities,-28000,-25000
+Borrowings (LOC / New Debt),10000,45000
+Debt Principal Payments,-30000,-28000
+Owner Distributions,-14000,-12000
+Net Cash from Financing Activities,-34000,5000
+Beginning Cash,150000,197000
+Net Increase (Decrease) in Cash,-13000,-72000
+Ending Cash,137000,125000
