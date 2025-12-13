@@ -1,19 +1,19 @@
 Line Item,Current Period,Prior Period
-Net Income,5000,-30000
-Depreciation & Amortization,52000,50000
-Change in Accounts Receivable,-15000,-22000
-Change in Work in Progress / Unbilled,-5000,-8000
-Change in Inventory & Materials,-5000,-3000
-Change in Accounts Payable,10000,6000
-Change in Customer Deposits,5000,4000
-Change in Accrued Payroll & Taxes,2000,1000
-Net Cash from Operating Activities,49000,-52000
-Capital Expenditures,-28000,-25000
-Net Cash from Investing Activities,-28000,-25000
-Borrowings (LOC / New Debt),10000,45000
-Debt Principal Payments,-30000,-28000
-Owner Distributions,-14000,-12000
-Net Cash from Financing Activities,-34000,5000
-Beginning Cash,150000,197000
-Net Increase (Decrease) in Cash,-13000,-72000
-Ending Cash,137000,125000
+Net Income,482000,413000
+Depreciation & Amortization,165000,158000
+Change in Accounts Receivable,-50000,-62000
+Change in Work in Progress / Unbilled,-15000,-18000
+Change in Inventory & Materials,-15000,-12000
+Change in Accounts Payable,35000,28000
+Change in Customer Deposits,15000,12000
+Change in Accrued Payroll & Taxes,7000,6000
+Net Cash from Operating Activities,624000,525000
+Capital Expenditures,-185000,-210000
+Net Cash from Investing Activities,-185000,-210000
+Borrowings (Net),-25000,120000
+Debt Principal Payments,-165000,-150000
+Owner Distributions,-210000,-195000
+Net Cash from Financing Activities,-400000,-225000
+Beginning Cash,390000,300000
+Net Increase (Decrease) in Cash,39000,90000
+Ending Cash,429000,390000
